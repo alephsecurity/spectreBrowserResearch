@@ -1,0 +1,87 @@
+From 15092a172f29814308137384db5a78e994320c82 Mon Sep 17 00:00:00 2001
+From: Jonathan Afek <jonyafek@gmail.com>
+Date: Mon, 26 Feb 2018 16:33:06 +0200
+Subject: [PATCH] timers for spectre
+
+---
+ src/objects.cc              | 18 ++++++++++++++++++
+ src/objects.h               |  2 ++
+ src/runtime/runtime-date.cc |  6 ++++++
+ src/runtime/runtime.h       |  3 ++-
+ 4 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/objects.cc b/src/objects.cc
+index 598b2631bc..032c4d5e90 100644
+--- a/src/objects.cc
++++ b/src/objects.cc
+@@ -18970,6 +18970,24 @@ double JSDate::CurrentTimeValue(Isolate* isolate) {
+   return Floor(V8::GetCurrentPlatform()->CurrentClockTimeMillis());
+ }
+ 
++//static __inline__ uint64_t rdtsc(void)
++//{
++//    uint32_t hi, lo;
++//    __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
++//    return ( (uint64_t)lo)|( ((uint64_t)hi)<<32 );
++//}
++
++static __inline__ uint32_t rdtsc(void)
++{
++    uint32_t hi, lo;
++    __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
++    return ((uint32_t)lo & (uint32_t)0x7FFFFFFF);
++}
++
++uint32_t JSDate::CurrentTimeValueRdtsc(Isolate* isolate) {
++  return rdtsc();
++}
++
+ 
+ // static
+ Object* JSDate::GetField(Object* object, Smi* index) {
+diff --git a/src/objects.h b/src/objects.h
+index 2b01ce015d..b023323582 100644
+--- a/src/objects.h
++++ b/src/objects.h
+@@ -3878,6 +3878,8 @@ class JSDate: public JSObject {
+   // Returns the time value (UTC) identifying the current time.
+   static double CurrentTimeValue(Isolate* isolate);
+ 
++  static uint32_t CurrentTimeValueRdtsc(Isolate* isolate);
++
+   // Returns the date field with the specified index.
+   // See FieldIndex for the list of date fields.
+   static Object* GetField(Object* date, Smi* index);
+diff --git a/src/runtime/runtime-date.cc b/src/runtime/runtime-date.cc
+index d149af652b..1876b4c172 100644
+--- a/src/runtime/runtime-date.cc
++++ b/src/runtime/runtime-date.cc
+@@ -27,5 +27,11 @@ RUNTIME_FUNCTION(Runtime_DateCurrentTime) {
+   return *isolate->factory()->NewNumber(JSDate::CurrentTimeValue(isolate));
+ }
+ 
++RUNTIME_FUNCTION(Runtime_DateCurrentTimeRdtsc) {
++  HandleScope scope(isolate);
++  //DCHECK_EQ(0, args.length());
++  return *isolate->factory()->NewNumberFromUint(JSDate::CurrentTimeValueRdtsc(isolate));
++}
++
+ }  // namespace internal
+ }  // namespace v8
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 2a78d63958..171c2866ef 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -127,7 +127,8 @@ namespace internal {
+ 
+ #define FOR_EACH_INTRINSIC_DATE(F) \
+   F(IsDate, 1, 1)                  \
+-  F(DateCurrentTime, 0, 1)
++  F(DateCurrentTime, 0, 1)         \
++  F(DateCurrentTimeRdtsc, 0, 1)
+ 
+ #define FOR_EACH_INTRINSIC_DEBUG(F)             \
+   F(HandleDebuggerStatement, 0, 1)              \
+-- 
+2.16.0
+
