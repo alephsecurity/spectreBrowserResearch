@@ -1,22 +1,22 @@
 /*
  * The general flow of this POC is to have a known value stored in a JS variable.
- * The variable bits will be queried in a speculatively executed branch (misprediction)
+ * The variable bits will be queried in a speculatively executed branch (misprediction),
  * and inside that branch the cache state of other JS array cells will be affected based of the bit value queried (these cells will enter the cache).
- * These affected cells are specially crafted so that each one points to the next one so that when we later
- * access the the cells one after the other by following the pointers we will have an amplified time difference
+ * These affected cells are specially crafted so that each one points to the next one - thus, when we later
+ * access the the cells one after the other by following the pointers, we will have an amplified time difference
  * between a state where each of the cells is cached compared to the state where each of the cells is not cached.
  * The time difference should be roughly the time to fetch a cache-line from the RAM times the amount of cells.
- * In addtion we wait for performance.now() to tick in a busy loop and start checking the probe array right after the tick.
- * From that point we count the number iterations inside a busy loop until performance.now() ticks again.
- * We then do the whole described process a number of times in a loop and compute the mean value of the ticks we got in each iteration.
- * We can then see a clear difference in the mean value between a state where the probe pointer array was all cached or all non-cached
+ * In addtion, we wait for performance.now() to tick in a busy loop, and start checking the probe array right after the tick.
+ * From that point, we count the number iterations inside a busy loop until performance.now() ticks again.
+ * We then do the whole described process a number of times in a loop, and compute the mean value of the ticks we got in each iteration.
+ * We can then see a clear difference in the mean value between a state where the probe pointer array was all cached or all non-cached,
  * and therefore can conclude whether the bit value was 1 or 0.
- * This process allows us to read a memory value we are able to speculatively access in a speculatively predicted branch in ~1 second per bit.
- * We were not able to access memory that is not already accessible to our code anyway due to the array index masking Spectre mitigation.
- * Although such acccess could be maybe achived by training a function to access a far member of an object passed to it and then passing a short
- * object to this function in which the member of the same name is much closer to the beginning of the object so the value that will be speculatively read
- * is of a larger offset from the beginning of the object (beyond the object limits) and this memory slot could potentially hold some sort of sensitive information.
- * This POC shows that while the performace.now() resolution reduction and jitter added as Spectre mitigations are very effective at slowing
+ * This process allows us to read a memory value that we are able to speculatively access in a speculatively predicted branch in ~1 second per bit.
+ * We were not able to access memory that is not already accessible to our code anyway, due to the array index masking Spectre mitigation.
+ * Howerver, such access could be potentially achieved by training a function to access a far member of an object passed to it, and then passing a short
+ * object to this function, in which the member of the same name is much closer to the beginning of the object. Thus, the value that would be speculatively read
+ * is of a larger offset from the beginning of the object (beyond the object limits), and this memory slot could potentially hold some sort of sensitive information.
+ * This POC shows, that while the performace.now() resolution reduction and jitter added as Spectre mitigations are very effective at slowing
  * down Spectre expolits, they do not actually help to prevent them. The actual prevention is done by index masking and/or process site isolation.
  */
 
